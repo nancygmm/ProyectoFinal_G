@@ -189,6 +189,9 @@ fn main() {
 
         time += 1;
 
+        // Manejar entrada para mover la cámara
+        handle_input(&window, &mut camera, &mut 0); // `current_shader` no se usa aquí, pero es parte de la firma.
+
         framebuffer.clear();
 
         let view_matrix = create_view_matrix(camera.eye, camera.center, camera.up);
@@ -217,6 +220,7 @@ fn main() {
         std::thread::sleep(frame_delay);
     }
 }
+
 
 
 fn handle_input(window: &Window, camera: &mut Camera, current_shader: &mut u8) {
