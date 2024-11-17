@@ -170,16 +170,16 @@ fn main() {
 
     let mut time = 0;
 
-    // Definir posiciones, escalas, shaders y velocidades de rotación de los planetas
+    // Definir posiciones relativas (distancia al Sol), escalas, shaders, velocidades de rotación y velocidades orbitales de los planetas
     let planet_data = vec![
-        (Vec3::new(0.0, 0.0, 0.0), 2.0, 6, 0.0),  // Sol (no rota)
-        (Vec3::new(3.0, 0.0, 0.0), 0.5, 1, 0.05), // Planeta 1
-        (Vec3::new(6.0, 0.0, 0.0), 0.7, 2, 0.03), // Planeta 2
-        (Vec3::new(9.0, 0.0, 0.0), 0.9, 3, 0.02), // Planeta 3
-        (Vec3::new(12.0, 0.0, 0.0), 1.2, 4, 0.01), // Planeta 4
-        (Vec3::new(15.0, 0.0, 0.0), 1.5, 5, 0.04), // Planeta 5
-        (Vec3::new(18.0, 0.0, 0.0), 1.7, 7, 0.02), // Planeta 6
-        (Vec3::new(21.0, 0.0, 0.0), 1.8, 8, 0.03), // Planeta 7
+        (Vec3::new(0.0, 0.0, 0.0), 2.0, 6, 0.0, 0.0),  // Sol (no rota ni orbita)
+        (Vec3::new(3.0, 0.0, 0.0), 0.5, 1, 0.05, 0.02), // Planeta 1
+        (Vec3::new(6.0, 0.0, 0.0), 0.7, 2, 0.03, 0.015), // Planeta 2
+        (Vec3::new(9.0, 0.0, 0.0), 0.9, 3, 0.02, 0.01), // Planeta 3
+        (Vec3::new(12.0, 0.0, 0.0), 1.2, 4, 0.01, 0.007), // Planeta 4
+        (Vec3::new(15.0, 0.0, 0.0), 1.5, 5, 0.04, 0.005), // Planeta 5
+        (Vec3::new(18.0, 0.0, 0.0), 1.7, 7, 0.02, 0.003), // Planeta 6
+        (Vec3::new(21.0, 0.0, 0.0), 1.8, 8, 0.03, 0.002), // Planeta 7
     ];
 
     while window.is_open() {
@@ -198,12 +198,20 @@ fn main() {
         let projection_matrix = create_perspective_matrix(window_width as f32, window_height as f32);
         let viewport_matrix = create_viewport_matrix(framebuffer_width as f32, framebuffer_height as f32);
 
-        for (translation, scale, shader, rotation_speed) in &planet_data {
-            // Crear rotación sobre el propio eje del planeta
-            let rotation = Vec3::new(0.0, time as f32 * rotation_speed, 0.0);
+        for (translation, scale, shader, rotation_speed, orbital_speed) in &planet_data {
+            // Calcular la rotación sobre el eje propio del planeta
+            let self_rotation = Vec3::new(0.0, time as f32 * rotation_speed, 0.0);
 
-            // Crear matriz de modelo con traslación, escala y rotación
-            let model_matrix = create_model_matrix(*translation, *scale, rotation);
+            // Calcular la posición orbital (rotación alrededor del Sol)
+            let angle = time as f32 * orbital_speed; // Ángulo en radianes basado en la velocidad orbital
+            let orbital_translation = Vec3::new(
+                translation.x * angle.cos() - translation.z * angle.sin(),
+                translation.y,
+                translation.x * angle.sin() + translation.z * angle.cos(),
+            );
+
+            // Crear matriz de modelo combinando la posición orbital, la escala y la rotación propia
+            let model_matrix = create_model_matrix(orbital_translation, *scale, self_rotation);
             let uniforms = Uniforms {
                 model_matrix,
                 view_matrix,
@@ -223,6 +231,7 @@ fn main() {
         std::thread::sleep(frame_delay);
     }
 }
+
 
 
 fn handle_input(window: &Window, camera: &mut Camera, current_shader: &mut u8) {
