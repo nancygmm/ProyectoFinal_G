@@ -146,7 +146,7 @@ fn main() {
 
     let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
     let mut window = Window::new(
-        "Animated Fragment Shader",
+        "Sistema Solar",
         window_width,
         window_height,
         WindowOptions::default(),
@@ -158,23 +158,29 @@ fn main() {
 
     framebuffer.set_background_color(0x333355);
 
-    let translation = Vec3::new(0.0, 0.0, 0.0);
-    let rotation = Vec3::new(0.0, 0.0, 0.0);
-    let scale = 1.0f32;
-
     let mut camera = Camera::new(
-        Vec3::new(0.0, 0.0, 5.0),
+        Vec3::new(0.0, 0.0, 20.0), // Alejar la cámara para ver todo el sistema solar
         Vec3::new(0.0, 0.0, 0.0),
         Vec3::new(0.0, 1.0, 0.0),
     );
 
-    let obj = Obj::load("assets/models/sphere.obj").expect("Failed to load obj");
-    let vertex_arrays = obj.get_vertex_array(); 
-    let anillo = Obj::load("assets/models/anillo.obj").expect("Failed to load anillo obj");
-    let vertex_anillo = anillo.get_vertex_array();
+    // Cargar objetos
+    let sphere = Obj::load("assets/models/sphere.obj").expect("Failed to load sphere.obj");
+    let vertex_arrays = sphere.get_vertex_array();
+
     let mut time = 0;
 
-    let mut current_shader = 1; // Inicia con el shader 1 por defecto
+    // Definir posiciones, escalas y shaders de los planetas
+    let planet_data = vec![
+        (Vec3::new(0.0, 0.0, 0.0), 2.0, 6),  // Sol (escala más grande)
+        (Vec3::new(3.0, 0.0, 0.0), 0.5, 1), // Planeta 1
+        (Vec3::new(6.0, 0.0, 0.0), 0.7, 2), // Planeta 2
+        (Vec3::new(9.0, 0.0, 0.0), 0.9, 3), // Planeta 3
+        (Vec3::new(12.0, 0.0, 0.0), 1.2, 4), // Planeta 4
+        (Vec3::new(15.0, 0.0, 0.0), 1.5, 5), // Planeta 5
+        (Vec3::new(18.0, 0.0, 0.0), 1.7, 7), // Planeta 6
+        (Vec3::new(21.0, 0.0, 0.0), 1.8, 8), // Planeta 7
+    ];
 
     while window.is_open() {
         if window.is_key_down(Key::Escape) {
@@ -182,45 +188,26 @@ fn main() {
         }
 
         time += 1;
-        handle_input(&window, &mut camera, &mut current_shader);
 
         framebuffer.clear();
 
-        let noise1 = create_noise();
-        let noise2 = create_noise();
-        
-        let model_matrix = create_model_matrix(translation, scale, rotation);
-        let anillo_matrix = create_model_matrix(translation, scale, rotation);
         let view_matrix = create_view_matrix(camera.eye, camera.center, camera.up);
         let projection_matrix = create_perspective_matrix(window_width as f32, window_height as f32);
         let viewport_matrix = create_viewport_matrix(framebuffer_width as f32, framebuffer_height as f32);
-        let uniforms = Uniforms { 
-            model_matrix, 
-            view_matrix, 
-            projection_matrix, 
-            viewport_matrix,
-            time,
-            noise: noise1
-        };
-        let uniforms_anillo = Uniforms { 
-            model_matrix:anillo_matrix, 
-            view_matrix, 
-            projection_matrix, 
-            viewport_matrix,
-            time,
-            noise: noise2
-        };
 
-        framebuffer.set_current_color(0xFFDDDD);
-        let mut tecla = 0;
-        if window.is_key_down(Key::Key8) {
-            tecla = 8;
-        }
-        match tecla{
-            8 => {
-                render(&mut framebuffer, &uniforms, &vertex_arrays, current_shader); 
-                render(&mut framebuffer, &uniforms_anillo, &vertex_anillo, current_shader);},
-            _ => {render(&mut framebuffer, &uniforms, &vertex_arrays, current_shader);}
+        for (translation, scale, shader) in &planet_data {
+            // Crear matriz de modelo para cada planeta
+            let model_matrix = create_model_matrix(*translation, *scale, Vec3::new(0.0, time as f32 * 0.01, 0.0)); // Rotación sencilla
+            let uniforms = Uniforms {
+                model_matrix,
+                view_matrix,
+                projection_matrix,
+                viewport_matrix,
+                time,
+                noise: create_noise(),
+            };
+
+            render(&mut framebuffer, &uniforms, &vertex_arrays, *shader);
         }
 
         window
@@ -230,6 +217,7 @@ fn main() {
         std::thread::sleep(frame_delay);
     }
 }
+
 
 fn handle_input(window: &Window, camera: &mut Camera, current_shader: &mut u8) {
     let movement_speed = 1.0;
