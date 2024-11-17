@@ -170,16 +170,16 @@ fn main() {
 
     let mut time = 0;
 
-    // Definir posiciones, escalas y shaders de los planetas
+    // Definir posiciones, escalas, shaders y velocidades de rotación de los planetas
     let planet_data = vec![
-        (Vec3::new(0.0, 0.0, 0.0), 2.0, 6),  // Sol (escala más grande)
-        (Vec3::new(3.0, 0.0, 0.0), 0.5, 1), // Planeta 1
-        (Vec3::new(6.0, 0.0, 0.0), 0.7, 2), // Planeta 2
-        (Vec3::new(9.0, 0.0, 0.0), 0.9, 3), // Planeta 3
-        (Vec3::new(12.0, 0.0, 0.0), 1.2, 4), // Planeta 4
-        (Vec3::new(15.0, 0.0, 0.0), 1.5, 5), // Planeta 5
-        (Vec3::new(18.0, 0.0, 0.0), 1.7, 7), // Planeta 6
-        (Vec3::new(21.0, 0.0, 0.0), 1.8, 8), // Planeta 7
+        (Vec3::new(0.0, 0.0, 0.0), 2.0, 6, 0.0),  // Sol (no rota)
+        (Vec3::new(3.0, 0.0, 0.0), 0.5, 1, 0.05), // Planeta 1
+        (Vec3::new(6.0, 0.0, 0.0), 0.7, 2, 0.03), // Planeta 2
+        (Vec3::new(9.0, 0.0, 0.0), 0.9, 3, 0.02), // Planeta 3
+        (Vec3::new(12.0, 0.0, 0.0), 1.2, 4, 0.01), // Planeta 4
+        (Vec3::new(15.0, 0.0, 0.0), 1.5, 5, 0.04), // Planeta 5
+        (Vec3::new(18.0, 0.0, 0.0), 1.7, 7, 0.02), // Planeta 6
+        (Vec3::new(21.0, 0.0, 0.0), 1.8, 8, 0.03), // Planeta 7
     ];
 
     while window.is_open() {
@@ -190,7 +190,7 @@ fn main() {
         time += 1;
 
         // Manejar entrada para mover la cámara
-        handle_input(&window, &mut camera, &mut 0); // `current_shader` no se usa aquí, pero es parte de la firma.
+        handle_input(&window, &mut camera, &mut 0);
 
         framebuffer.clear();
 
@@ -198,9 +198,12 @@ fn main() {
         let projection_matrix = create_perspective_matrix(window_width as f32, window_height as f32);
         let viewport_matrix = create_viewport_matrix(framebuffer_width as f32, framebuffer_height as f32);
 
-        for (translation, scale, shader) in &planet_data {
-            // Crear matriz de modelo para cada planeta
-            let model_matrix = create_model_matrix(*translation, *scale, Vec3::new(0.0, time as f32 * 0.01, 0.0)); // Rotación sencilla
+        for (translation, scale, shader, rotation_speed) in &planet_data {
+            // Crear rotación sobre el propio eje del planeta
+            let rotation = Vec3::new(0.0, time as f32 * rotation_speed, 0.0);
+
+            // Crear matriz de modelo con traslación, escala y rotación
+            let model_matrix = create_model_matrix(*translation, *scale, rotation);
             let uniforms = Uniforms {
                 model_matrix,
                 view_matrix,
@@ -220,7 +223,6 @@ fn main() {
         std::thread::sleep(frame_delay);
     }
 }
-
 
 
 fn handle_input(window: &Window, camera: &mut Camera, current_shader: &mut u8) {
