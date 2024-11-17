@@ -19,6 +19,7 @@ use camera::Camera;
 use triangle::triangle;
 use shaders::{vertex_shader, fragment_shader};
 use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType};
+use image::{open, DynamicImage};
 
 pub struct Uniforms {
     model_matrix: Mat4,
@@ -156,30 +157,29 @@ fn main() {
     window.set_position(500, 500);
     window.update();
 
-    framebuffer.set_background_color(0x333355);
+    // Cargar la imagen del espacio
+    let space_texture = load_texture("assets/textures/Sky.png");
 
     let mut camera = Camera::new(
-        Vec3::new(0.0, 0.0, 20.0), // Alejar la cámara para ver todo el sistema solar
+        Vec3::new(0.0, 0.0, 20.0),
         Vec3::new(0.0, 0.0, 0.0),
         Vec3::new(0.0, 1.0, 0.0),
     );
 
-    // Cargar objetos
     let sphere = Obj::load("assets/models/sphere.obj").expect("Failed to load sphere.obj");
     let vertex_arrays = sphere.get_vertex_array();
 
     let mut time = 0;
 
-    // Definir posiciones relativas (distancia al Sol), escalas, shaders, velocidades de rotación y velocidades orbitales de los planetas
     let planet_data = vec![
-        (Vec3::new(0.0, 0.0, 0.0), 2.0, 6, 0.0, 0.0),  // Sol (no rota ni orbita)
-        (Vec3::new(3.0, 0.0, 0.0), 0.5, 1, 0.05, 0.02), // Planeta 1
-        (Vec3::new(6.0, 0.0, 0.0), 0.7, 2, 0.03, 0.015), // Planeta 2
-        (Vec3::new(9.0, 0.0, 0.0), 0.9, 3, 0.02, 0.01), // Planeta 3
-        (Vec3::new(12.0, 0.0, 0.0), 1.2, 4, 0.01, 0.007), // Planeta 4
-        (Vec3::new(15.0, 0.0, 0.0), 1.5, 5, 0.04, 0.005), // Planeta 5
-        (Vec3::new(18.0, 0.0, 0.0), 1.7, 7, 0.02, 0.003), // Planeta 6
-        (Vec3::new(21.0, 0.0, 0.0), 1.8, 8, 0.03, 0.002), // Planeta 7
+        (Vec3::new(0.0, 0.0, 0.0), 2.0, 6, 0.0, 0.0),
+        (Vec3::new(3.0, 0.0, 0.0), 0.5, 1, 0.05, 0.02),
+        (Vec3::new(6.0, 0.0, 0.0), 0.7, 2, 0.03, 0.015),
+        (Vec3::new(9.0, 0.0, 0.0), 0.9, 3, 0.02, 0.01),
+        (Vec3::new(12.0, 0.0, 0.0), 1.2, 4, 0.01, 0.007),
+        (Vec3::new(15.0, 0.0, 0.0), 1.5, 5, 0.04, 0.005),
+        (Vec3::new(18.0, 0.0, 0.0), 1.7, 7, 0.02, 0.003),
+        (Vec3::new(21.0, 0.0, 0.0), 1.8, 8, 0.03, 0.002),
     ];
 
     while window.is_open() {
@@ -189,28 +189,26 @@ fn main() {
 
         time += 1;
 
-        // Manejar entrada para mover la cámara
         handle_input(&window, &mut camera, &mut 0);
 
         framebuffer.clear();
+
+        render_background(&mut framebuffer, &space_texture);
 
         let view_matrix = create_view_matrix(camera.eye, camera.center, camera.up);
         let projection_matrix = create_perspective_matrix(window_width as f32, window_height as f32);
         let viewport_matrix = create_viewport_matrix(framebuffer_width as f32, framebuffer_height as f32);
 
         for (translation, scale, shader, rotation_speed, orbital_speed) in &planet_data {
-            // Calcular la rotación sobre el eje propio del planeta
             let self_rotation = Vec3::new(0.0, time as f32 * rotation_speed, 0.0);
 
-            // Calcular la posición orbital (rotación alrededor del Sol)
-            let angle = time as f32 * orbital_speed; // Ángulo en radianes basado en la velocidad orbital
+            let angle = time as f32 * orbital_speed;
             let orbital_translation = Vec3::new(
                 translation.x * angle.cos() - translation.z * angle.sin(),
                 translation.y,
                 translation.x * angle.sin() + translation.z * angle.cos(),
             );
 
-            // Crear matriz de modelo combinando la posición orbital, la escala y la rotación propia
             let model_matrix = create_model_matrix(orbital_translation, *scale, self_rotation);
             let uniforms = Uniforms {
                 model_matrix,
@@ -232,6 +230,28 @@ fn main() {
     }
 }
 
+fn load_texture(path: &str) -> DynamicImage {
+    open(path).expect("Failed to load texture")
+}
+
+fn render_background(framebuffer: &mut Framebuffer, texture: &DynamicImage) {
+    let texture = texture.to_rgb8();
+    let (texture_width, texture_height) = texture.dimensions();
+
+    for y in 0..framebuffer.height {
+        for x in 0..framebuffer.width {
+            let tx = (x as u32 * texture_width / framebuffer.width as u32) as u32;
+            let ty = (y as u32 * texture_height / framebuffer.height as u32) as u32;
+
+            let pixel = texture.get_pixel(tx, ty);
+            let color = (pixel[0] as u32) << 16 | (pixel[1] as u32) << 8 | (pixel[2] as u32);
+
+            framebuffer.set_current_color(color);
+            framebuffer.point(x, y, 1.0);
+        }
+    }
+}
+
 
 
 fn handle_input(window: &Window, camera: &mut Camera, current_shader: &mut u8) {
@@ -239,7 +259,6 @@ fn handle_input(window: &Window, camera: &mut Camera, current_shader: &mut u8) {
     let rotation_speed = PI / 50.0;
     let zoom_speed = 0.1;
 
-    // Cambiar shader con teclas numéricas
     if window.is_key_down(Key::Key0) {
         *current_shader = 0;
     }
